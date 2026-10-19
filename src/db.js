@@ -1,5 +1,5 @@
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
-import { CATEGORIES } from "./config";
+import { CURRENCY, CATEGORIES } from "./config";
 import { monthRange, isRealDate } from "./money";
 
 const sqlite = new SQLiteConnection(CapacitorSQLite);
@@ -135,4 +135,57 @@ export async function monthSummary(ym) {
     )
   ).values;
   return { total: total.total, count: total.count, byCategory };
+}
+
+export async function exportAll() {
+  const rows = (
+    await db.query(
+      `SELECT e.description, e.amount_minor AS amountMinor, c.name AS category,
+            e.expense_date AS date, e.created_at AS createdAt
+     FROM expenses e JOIN categories c ON c.id = e.category_id ORDER BY e.id`,
+    )
+  ).values;
+  return {
+    app: "penny",
+    version: 1,
+    currency: CURRENCY.code,
+    exportedAt: new Date().toISOString(),
+    expenses: rows,
+  };
+}
+
+// Replaces all expenses. Everything is validated BEFORE anything is deleted,
+// and the writes run in one transaction, so a bad file changes nothing.
+export async function importAll(data) {
+  if (data?.app !== "penny" || !Array.isArray(data.expenses))
+    throw new Error("This is not a Penny backup file.");
+  const byName = new Map((await listCategories()).map((c) => [c.name, c.id]));
+  const set = [{ statement: "DELETE FROM expenses", values: [] }];
+  for (const [i, x] of data.expenses.entries()) {
+    const categoryId = byName.get(x.category);
+    try {
+      validate({
+        description: x.description,
+        amountMinor: x.amountMinor,
+        categoryId,
+        date: x.date,
+      });
+    } catch (e) {
+      throw new Error(`Row ${i + 1}: ${e.message}`);
+    }
+    set.push({
+      statement: `INSERT INTO expenses
+        (description, amount_minor, category_id, expense_date, created_at)
+        VALUES (?, ?, ?, ?, ?)`,
+      values: [
+        x.description.trim(),
+        x.amountMinor,
+        categoryId,
+        x.date,
+        x.createdAt ?? new Date().toISOString().slice(0, 19).replace("T", " "),
+      ],
+    });
+  }
+  await db.executeSet(set, true);
+  return data.expenses.length;
 }

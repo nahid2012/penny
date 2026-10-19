@@ -1,121 +1,57 @@
-import { useEffect, useState, useCallback } from 'react';
-import { initDb, listCategories, addExpense, updateExpense, deleteExpense,
-         listExpenses, monthSummary } from './db';
-import { parseAmount, formatAmount, monthRange, todayLocal } from './money';
+import { useEffect, useState } from 'react';
+import { initDb, listCategories } from './db';
+import Dashboard from './Dashboard';
+import History from './History';
+import Settings from './Settings';
+import ExpenseSheet from './ExpenseSheet';
+import './styles.css';
 
-const thisMonth = () => todayLocal().slice(0, 7);
-const empty = (cats) => ({ description: '', amount: '', categoryId: cats[0]?.id ?? '', date: todayLocal() });
+const TABS = [['home', '🏠', 'Home'], ['history', '🧾', 'History'], ['settings', '⚙️', 'Settings']];
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [cats, setCats] = useState([]);
-  const [month, setMonth] = useState(thisMonth());
-  const [summary, setSummary] = useState(null);
-  const [expenses, setExpenses] = useState([]);
-  const [form, setForm] = useState(null);       // null = closed
-  const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
-
-  const refresh = useCallback(async () => {
-    const { from, to } = monthRange(month);
-    setSummary(await monthSummary(month));
-    setExpenses(await listExpenses({ from, to }));
-  }, [month]);
+  const [cats, setCats] = useState([]);
+  const [tab, setTab] = useState('home');
+  const [sheet, setSheet] = useState(null);      // null | { expense: obj | null }
+  const [version, setVersion] = useState(0);     // bump to make views reload
 
   useEffect(() => {
-    (async () => {
-      await initDb();
-      const c = await listCategories();
-      setCats(c);
-      setReady(true);
-    })().catch((e) => setError(e.message));
+    (async () => { await initDb(); setCats(await listCategories()); setReady(true); })()
+      .catch((e) => setError(e.message));
   }, []);
 
-  useEffect(() => { if (ready) refresh().catch((e) => setError(e.message)); }, [ready, refresh]);
+  if (!ready) return <p className="boot">{error || 'Loading…'}</p>;
 
-  async function save(e) {
-    e.preventDefault();
-    setError('');
-    const amountMinor = parseAmount(form.amount);
-    if (amountMinor === null) return setError('Enter a valid amount, e.g. 250 or 99.50');
-    const payload = { description: form.description, amountMinor,
-                      categoryId: Number(form.categoryId), date: form.date };
-    try {
-      editingId ? await updateExpense(editingId, payload) : await addExpense(payload);
-      setForm(null); setEditingId(null);
-      await refresh();
-    } catch (err) { setError(err.message); }
-  }
-
-  async function remove(x) {
-    if (!window.confirm(`Delete "${x.description}" (${formatAmount(x.amountMinor)})?`)) return;
-    await deleteExpense(x.id);
-    await refresh();
-  }
-
-  function edit(x) {
-    setEditingId(x.id);
-    setForm({ description: x.description, amount: (x.amountMinor / 100).toFixed(2),
-              categoryId: x.categoryId, date: x.date });
-  }
-
-  if (!ready) return <p style={{ padding: 16 }}>{error || 'Loading…'}</p>;
+  const openEdit = (expense) => setSheet({ expense });
+  const changed = () => setVersion((v) => v + 1);
 
   return (
-    <main style={{ maxWidth: 520, margin: '0 auto', padding: 16, fontFamily: 'system-ui' }}>
-      <h1>Penny</h1>
-      <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+    <div className="app">
+      <header><h1>Penny</h1></header>
+      <main>
+        {tab === 'home' && <Dashboard version={version} onEdit={openEdit} />}
+        {tab === 'history' && <History cats={cats} version={version} onEdit={openEdit} />}
+        {tab === 'settings' && <Settings onChanged={changed} />}
+      </main>
 
-      {summary && (
-        <section>
-          <h2>{formatAmount(summary.total)}</h2>
-          <p>{summary.count} transaction{summary.count === 1 ? '' : 's'} in {month}</p>
-          <ul>
-            {summary.byCategory.map((c) => (
-              <li key={c.category}>{c.category}: {formatAmount(c.total)}</li>
-            ))}
-          </ul>
-        </section>
+      {tab !== 'settings' && (
+        <button className="fab" aria-label="Add expense" onClick={() => setSheet({ expense: null })}>+</button>
       )}
 
-      {error && <p role="alert" style={{ color: 'crimson' }}>{error}</p>}
-
-      {form ? (
-        <form onSubmit={save} style={{ display: 'grid', gap: 8 }}>
-          <input placeholder="Description" value={form.description}
-                 onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <input placeholder="Amount (৳)" inputMode="decimal" value={form.amount}
-                 onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-          <select value={form.categoryId}
-                  onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
-            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <input type="date" value={form.date}
-                 onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          <button type="submit">{editingId ? 'Save changes' : 'Add expense'}</button>
-          <button type="button" onClick={() => { setForm(null); setEditingId(null); setError(''); }}>
-            Cancel
+      <nav>
+        {TABS.map(([id, icon, label]) => (
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+            <span aria-hidden>{icon}</span>{label}
           </button>
-        </form>
-      ) : (
-        <button onClick={() => setForm(empty(cats))}>+ Add expense</button>
-      )}
+        ))}
+      </nav>
 
-      <h2>Expenses</h2>
-      {expenses.length === 0 ? (
-        <p>No expenses in {month}. Tap “Add expense” to record your first one.</p>
-      ) : (
-        <ul style={{ padding: 0, listStyle: 'none' }}>
-          {expenses.map((x) => (
-            <li key={x.id} style={{ padding: '8px 0', borderBottom: '1px solid #ddd' }}>
-              <strong>{formatAmount(x.amountMinor)}</strong> {x.description}
-              <div style={{ fontSize: 12, color: '#666' }}>{x.date} · {x.category}</div>
-              <button onClick={() => edit(x)}>Edit</button>{' '}
-              <button onClick={() => remove(x)}>Delete</button>
-            </li>
-          ))}
-        </ul>
+      {sheet && (
+        <ExpenseSheet cats={cats} expense={sheet.expense}
+          onClose={() => setSheet(null)}
+          onSaved={() => { setSheet(null); changed(); }} />
       )}
-    </main>
+    </div>
   );
 }
