@@ -1,9 +1,15 @@
+import { Capacitor } from "@capacitor/core";
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
+import { defineCustomElements } from "jeep-sqlite-current-sqljs/loader";
+
 import { CURRENCY, CATEGORIES } from "./config";
 import { monthRange, isRealDate } from "./money";
 
 const sqlite = new SQLiteConnection(CapacitorSQLite);
+
 let db;
+let initPromise = null;
+let webStoreInitialized = false;
 
 // Append new migrations; never edit old ones.
 const MIGRATIONS = [
@@ -23,17 +29,40 @@ const MIGRATIONS = [
    CREATE INDEX idx_expenses_date ON expenses(expense_date);`,
 ];
 
-export async function initDb() {
-  if (db) return;
+async function initWebSqlite() {
+  if (webStoreInitialized) return;
+
+  // Register the SQLite web component.
+  defineCustomElements(window);
+
+  if (!document.querySelector("jeep-sqlite")) {
+    document.body.appendChild(document.createElement("jeep-sqlite"));
+  }
+
+  await customElements.whenDefined("jeep-sqlite");
+
+  // Initialize the persistent browser SQLite store.
+  await sqlite.initWebStore();
+
+  webStoreInitialized = true;
+}
+
+async function initializeDatabase() {
+  if (Capacitor.getPlatform() === "web") {
+    await initWebSqlite();
+  }
+
   db = await sqlite.createConnection("penny", false, "no-encryption", 1, false);
+
   await db.open();
   await db.execute("PRAGMA foreign_keys = ON;");
 
-  const res = await db.query("PRAGMA user_version;");
-  const current = res.values?.[0]?.user_version ?? 0;
-  for (let v = current; v < MIGRATIONS.length; v++) {
-    await db.execute(MIGRATIONS[v]);
-    await db.execute(`PRAGMA user_version = ${v + 1};`);
+  const result = await db.query("PRAGMA user_version;");
+  const currentVersion = result.values?.[0]?.user_version ?? 0;
+
+  for (let version = currentVersion; version < MIGRATIONS.length; version++) {
+    await db.execute(MIGRATIONS[version]);
+    await db.execute(`PRAGMA user_version = ${version + 1};`);
   }
 
   for (const name of CATEGORIES) {
@@ -41,42 +70,90 @@ export async function initDb() {
   }
 }
 
+export async function initDb() {
+  if (db) return;
+
+  // Prevent concurrent initialization, including React StrictMode.
+  if (!initPromise) {
+    initPromise = initializeDatabase().catch((error) => {
+      db = undefined;
+      initPromise = null;
+      throw error;
+    });
+  }
+
+  return initPromise;
+}
+
 function validate({ description, amountMinor, categoryId, date }) {
-  if (!description?.trim()) throw new Error("Description is required.");
-  if (!Number.isInteger(amountMinor) || amountMinor <= 0)
+  if (!description?.trim()) {
+    throw new Error("Description is required.");
+  }
+
+  if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
     throw new Error("Amount must be greater than zero.");
-  if (!Number.isInteger(categoryId)) throw new Error("Choose a category.");
-  if (!isRealDate(date)) throw new Error("Date is invalid.");
+  }
+
+  if (!Number.isInteger(categoryId)) {
+    throw new Error("Choose a category.");
+  }
+
+  if (!isRealDate(date)) {
+    throw new Error("Date is invalid.");
+  }
 }
 
 export async function listCategories() {
   return (await db.query("SELECT id, name FROM categories ORDER BY id")).values;
 }
 
-export async function addExpense(e) {
-  validate(e);
+export async function addExpense(expense) {
+  validate(expense);
+
   await db.run(
-    `INSERT INTO expenses (description, amount_minor, category_id, expense_date)
+    `INSERT INTO expenses
+       (description, amount_minor, category_id, expense_date)
      VALUES (?, ?, ?, ?)`,
-    [e.description.trim(), e.amountMinor, e.categoryId, e.date],
+    [
+      expense.description.trim(),
+      expense.amountMinor,
+      expense.categoryId,
+      expense.date,
+    ],
   );
 }
 
-export async function updateExpense(id, e) {
-  validate(e);
-  const r = await db.run(
-    `UPDATE expenses SET description = ?, amount_minor = ?, category_id = ?,
-       expense_date = ?, updated_at = datetime('now') WHERE id = ?`,
-    [e.description.trim(), e.amountMinor, e.categoryId, e.date, id],
+export async function updateExpense(id, expense) {
+  validate(expense);
+
+  const result = await db.run(
+    `UPDATE expenses
+     SET description = ?,
+         amount_minor = ?,
+         category_id = ?,
+         expense_date = ?,
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    [
+      expense.description.trim(),
+      expense.amountMinor,
+      expense.categoryId,
+      expense.date,
+      id,
+    ],
   );
-  if (!r.changes?.changes) throw new Error("Expense not found.");
+
+  if (!result.changes?.changes) {
+    throw new Error("Expense not found.");
+  }
 }
 
 export async function deleteExpense(id) {
   await db.run("DELETE FROM expenses WHERE id = ?", [id]);
 }
 
-// All filters optional and combined with AND. `to` is exclusive.
+// All filters are optional and combined with AND.
+// `to` is exclusive.
 export async function listExpenses({
   from,
   to,
@@ -86,65 +163,105 @@ export async function listExpenses({
 } = {}) {
   const where = [];
   const args = [];
+
   if (from) {
     where.push("e.expense_date >= ?");
     args.push(from);
   }
+
   if (to) {
     where.push("e.expense_date < ?");
     args.push(to);
   }
+
   if (categoryId) {
     where.push("e.category_id = ?");
     args.push(categoryId);
   }
+
   if (search?.trim()) {
     const escaped = search.trim().replace(/[\\%_]/g, "\\$&");
+
     where.push("e.description LIKE ? ESCAPE '\\'");
     args.push(`%${escaped}%`);
   }
-  let sql = `SELECT e.id, e.description, e.amount_minor AS amountMinor,
-               e.category_id AS categoryId, c.name AS category,
-               e.expense_date AS date
-             FROM expenses e JOIN categories c ON c.id = e.category_id`;
-  if (where.length) sql += " WHERE " + where.join(" AND ");
+
+  let sql = `
+    SELECT
+      e.id,
+      e.description,
+      e.amount_minor AS amountMinor,
+      e.category_id AS categoryId,
+      c.name AS category,
+      e.expense_date AS date
+    FROM expenses e
+    JOIN categories c ON c.id = e.category_id
+  `;
+
+  if (where.length) {
+    sql += " WHERE " + where.join(" AND ");
+  }
+
   sql += " ORDER BY e.expense_date DESC, e.id DESC";
+
   if (limit) {
     sql += " LIMIT ?";
     args.push(limit);
   }
+
   return (await db.query(sql, args)).values;
 }
 
 export async function monthSummary(ym) {
   const { from, to } = monthRange(ym);
+
   const total = (
     await db.query(
-      `SELECT COALESCE(SUM(amount_minor), 0) AS total, COUNT(*) AS count
-     FROM expenses WHERE expense_date >= ? AND expense_date < ?`,
+      `SELECT
+         COALESCE(SUM(amount_minor), 0) AS total,
+         COUNT(*) AS count
+       FROM expenses
+       WHERE expense_date >= ? AND expense_date < ?`,
       [from, to],
     )
   ).values[0];
+
   const byCategory = (
     await db.query(
-      `SELECT c.name AS category, SUM(e.amount_minor) AS total
-     FROM expenses e JOIN categories c ON c.id = e.category_id
-     WHERE e.expense_date >= ? AND e.expense_date < ?
-     GROUP BY c.id ORDER BY total DESC`,
+      `SELECT
+         c.name AS category,
+         SUM(e.amount_minor) AS total
+       FROM expenses e
+       JOIN categories c ON c.id = e.category_id
+       WHERE e.expense_date >= ? AND e.expense_date < ?
+       GROUP BY c.id
+       ORDER BY total DESC`,
       [from, to],
     )
   ).values;
-  return { total: total.total, count: total.count, byCategory };
+
+  return {
+    total: total.total,
+    count: total.count,
+    byCategory,
+  };
 }
 
 export async function exportAll() {
   const rows = (
     await db.query(
-      `SELECT e.description, e.amount_minor AS amountMinor, c.name AS category,
-            e.expense_date AS date, e.created_at AS createdAt
-     FROM expenses e JOIN categories c ON c.id = e.category_id ORDER BY e.id`,
+      `SELECT
+         e.description,
+         e.amount_minor AS amountMinor,
+         c.name AS category,
+         e.expense_date AS date,
+         e.created_at AS createdAt
+       FROM expenses e
+       JOIN categories c ON c.id = e.category_id
+       ORDER BY e.id`,
     )
   ).values;
+
   return {
     app: "penny",
     version: 1,
@@ -154,38 +271,55 @@ export async function exportAll() {
   };
 }
 
-// Replaces all expenses. Everything is validated BEFORE anything is deleted,
-// and the writes run in one transaction, so a bad file changes nothing.
+// Replaces all expenses. Validate everything before deleting.
+// All writes run in one transaction.
 export async function importAll(data) {
-  if (data?.app !== "penny" || !Array.isArray(data.expenses))
+  if (data?.app !== "penny" || !Array.isArray(data.expenses)) {
     throw new Error("This is not a Penny backup file.");
-  const byName = new Map((await listCategories()).map((c) => [c.name, c.id]));
-  const set = [{ statement: "DELETE FROM expenses", values: [] }];
-  for (const [i, x] of data.expenses.entries()) {
-    const categoryId = byName.get(x.category);
+  }
+
+  const categories = await listCategories();
+  const byName = new Map(
+    categories.map((category) => [category.name, category.id]),
+  );
+
+  const statements = [
+    {
+      statement: "DELETE FROM expenses",
+      values: [],
+    },
+  ];
+
+  for (const [index, expense] of data.expenses.entries()) {
+    const categoryId = byName.get(expense.category);
+
     try {
       validate({
-        description: x.description,
-        amountMinor: x.amountMinor,
+        description: expense.description,
+        amountMinor: expense.amountMinor,
         categoryId,
-        date: x.date,
+        date: expense.date,
       });
-    } catch (e) {
-      throw new Error(`Row ${i + 1}: ${e.message}`);
+    } catch (error) {
+      throw new Error(`Row ${index + 1}: ${error.message}`);
     }
-    set.push({
+
+    statements.push({
       statement: `INSERT INTO expenses
         (description, amount_minor, category_id, expense_date, created_at)
         VALUES (?, ?, ?, ?, ?)`,
       values: [
-        x.description.trim(),
-        x.amountMinor,
+        expense.description.trim(),
+        expense.amountMinor,
         categoryId,
-        x.date,
-        x.createdAt ?? new Date().toISOString().slice(0, 19).replace("T", " "),
+        expense.date,
+        expense.createdAt ??
+          new Date().toISOString().slice(0, 19).replace("T", " "),
       ],
     });
   }
-  await db.executeSet(set, true);
+
+  await db.executeSet(statements, true);
+
   return data.expenses.length;
 }
