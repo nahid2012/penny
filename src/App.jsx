@@ -6,6 +6,15 @@ import Settings from './Settings';
 import ExpenseSheet from './ExpenseSheet';
 import './styles.css';
 
+import { tap } from './haptics';
+// state:
+const [toast, setToast] = useState(null);
+const showToast = (message) => {
+  const id = Date.now();
+  setToast({ id, message });
+  setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2200);
+};
+
 const TABS = [['home', '🏠', 'Home'], ['history', '🧾', 'History'], ['settings', '⚙️', 'Settings']];
 
 export default function App() {
@@ -29,7 +38,7 @@ export default function App() {
   return (
     <div className="app">
       <header><h1>Penny</h1></header>
-      <main>
+      <main key={tab} className="view">
         {tab === 'home' && <Dashboard version={version} onEdit={openEdit} />}
         {tab === 'history' && <History cats={cats} version={version} onEdit={openEdit} />}
         {tab === 'settings' && <Settings onChanged={changed} />}
@@ -41,16 +50,18 @@ export default function App() {
 
       <nav>
         {TABS.map(([id, icon, label]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
-            <span aria-hidden>{icon}</span>{label}
+          <button key={id} className={tab === id ? 'active' : ''} onClick={() => { if (tab !== id) tap(); setTab(id); }}>
+            <span className="pill" aria-hidden>{icon}</span>{label}
           </button>
         ))}
       </nav>
 
+      {toast && <div className="toast" key={toast.id} role="status">{toast.message}</div>}
+
       {sheet && (
         <ExpenseSheet cats={cats} expense={sheet.expense}
           onClose={() => setSheet(null)}
-          onSaved={() => { setSheet(null); changed(); }} />
+          onSaved={(msg) => { setSheet(null); changed(); showToast(msg); }} />
       )}
     </div>
   );
