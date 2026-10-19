@@ -4,15 +4,15 @@ import { formatAmount, monthRange, shiftMonth, monthLabel, todayLocal } from './
 import { ExpenseRow, Empty } from './components';
 import { useCountUp } from './useCountUp';
 import { CATEGORY_STYLE } from './config';
-import { CategoryIcon } from './components';   // merge into your existing components import
+import { CategoryIcon } from './components';
 import { tap } from './haptics';
-// ...inside the component:
-const animatedTotal = useCountUp(s?.total ?? 0);
+
 
 export default function Dashboard({ version, onEdit }) {
   const [month, setMonth] = useState(todayLocal().slice(0, 7));
   const [s, setS] = useState(null);
   const [recent, setRecent] = useState([]);
+  const animatedTotal = useCountUp(s?.total ?? 0);
 
   useEffect(() => {
     const { from, to } = monthRange(month);

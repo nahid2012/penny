@@ -2,13 +2,6 @@ import { useState } from 'react';
 import { addExpense, updateExpense, deleteExpense } from './db';
 import { parseAmount, formatAmount, todayLocal } from './money';
 import { success, warn, tap } from './haptics';
-// inside the component, next to the other useState calls:
-const [closing, setClosing] = useState(false);
-
-const dismiss = (after) => {            // play the slide-down, then tell the parent
-  setClosing(true);
-  setTimeout(after, 200);
-};
 
 export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
   const [f, setF] = useState(expense ? {
@@ -17,6 +10,13 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
   } : { description: '', amount: '', categoryId: cats[0].id, date: todayLocal() });
   const [error, setError] = useState('');
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const [closing, setClosing] = useState(false);
+
+  const dismiss = (after) => {            // play the slide-down, then tell the parent
+    setClosing(true);
+    setTimeout(after, 200);
+  };
+
 
   async function save(e) {
     e.preventDefault();

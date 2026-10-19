@@ -7,15 +7,6 @@ import ExpenseSheet from './ExpenseSheet';
 import './styles.css';
 
 import { tap } from './haptics';
-// state:
-const [toast, setToast] = useState(null);
-const showToast = (message) => {
-  const id = Date.now();
-  setToast({ id, message });
-  setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2200);
-};
-
-const TABS = [['home', '🏠', 'Home'], ['history', '🧾', 'History'], ['settings', '⚙️', 'Settings']];
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -24,6 +15,15 @@ export default function App() {
   const [tab, setTab] = useState('home');
   const [sheet, setSheet] = useState(null);      // null | { expense: obj | null }
   const [version, setVersion] = useState(0);     // bump to make views reload
+
+  const [toast, setToast] = useState(null);
+  const showToast = (message) => {
+    const id = Date.now();
+    setToast({ id, message });
+    setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2200);
+  };
+
+  const TABS = [['home', '🏠', 'Home'], ['history', '🧾', 'History'], ['settings', '⚙️', 'Settings']];
 
   useEffect(() => {
     (async () => { await initDb(); setCats(await listCategories()); setReady(true); })()
