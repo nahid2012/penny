@@ -52,7 +52,7 @@ export default function History({ cats, version, onEdit }) {
                hint={filtered ? 'Try loosening the filters.' : 'Tap + to record your first expense.'} />
       ) : (
         <ul className="list card">
-          {rows.map((x) => <ExpenseRow key={x.id} x={x} onClick={onEdit} />)}
+          {rows.map((x, i) => <ExpenseRow key={x.id} x={x} i={i} onClick={onEdit} />)}
         </ul>
       )}
     </>
