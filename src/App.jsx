@@ -1,20 +1,20 @@
-import { useEffect, useState } from 'react';
-import { initDb, listCategories } from './db';
-import Dashboard from './Dashboard';
-import History from './History';
-import Settings from './Settings';
-import ExpenseSheet from './ExpenseSheet';
-import './styles.css';
+import { useEffect, useState } from "react";
+import { initDb, listCategories } from "./db";
+import Dashboard from "./Dashboard";
+import History from "./History";
+import Settings from "./Settings";
+import ExpenseSheet from "./ExpenseSheet";
+import "./styles.css";
 
-import { tap } from './haptics';
+import { tap } from "./haptics";
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [cats, setCats] = useState([]);
-  const [tab, setTab] = useState('home');
-  const [sheet, setSheet] = useState(null);      // null | { expense: obj | null }
-  const [version, setVersion] = useState(0);     // bump to make views reload
+  const [tab, setTab] = useState("home");
+  const [sheet, setSheet] = useState(null); // null | { expense: obj | null }
+  const [version, setVersion] = useState(0); // bump to make views reload
 
   const [toast, setToast] = useState(null);
   const showToast = (message) => {
@@ -23,45 +23,83 @@ export default function App() {
     setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2200);
   };
 
-  const TABS = [['home', '🏠', 'Home'], ['history', '🧾', 'History'], ['settings', '⚙️', 'Settings']];
+  const TABS = [
+    ["home", "🏠", "Home"],
+    ["history", "🧾", "History"],
+    ["settings", "⚙️", "Settings"],
+  ];
 
   useEffect(() => {
-    (async () => { await initDb(); setCats(await listCategories()); setReady(true); })()
-      .catch((e) => setError(e.message));
+    (async () => {
+      await initDb();
+      setCats(await listCategories());
+      setReady(true);
+    })().catch((e) => setError(e.message));
   }, []);
 
-  if (!ready) return <p className="boot">{error || 'Loading…'}</p>;
+  if (!ready) return <p className="boot">{error || "Loading…"}</p>;
 
   const openEdit = (expense) => setSheet({ expense });
   const changed = () => setVersion((v) => v + 1);
 
   return (
     <div className="app">
-      <header><h1>Penny</h1></header>
+      <header>
+        <h1>Penny</h1>
+      </header>
       <main key={tab} className="view">
-        {tab === 'home' && <Dashboard version={version} onEdit={openEdit} />}
-        {tab === 'history' && <History cats={cats} version={version} onEdit={openEdit} />}
-        {tab === 'settings' && <Settings onChanged={changed} />}
+        {tab === "home" && <Dashboard version={version} onEdit={openEdit} />}
+        {tab === "history" && (
+          <History cats={cats} version={version} onEdit={openEdit} />
+        )}
+        {tab === "settings" && <Settings onChanged={changed} />}
       </main>
 
-      {tab !== 'settings' && (
-        <button className="fab" aria-label="Add expense" onClick={() => setSheet({ expense: null })}>+</button>
+      {tab !== "settings" && (
+        <button
+          className="fab"
+          aria-label="Add expense"
+          onClick={() => setSheet({ expense: null })}
+        >
+          +
+        </button>
       )}
 
       <nav>
         {TABS.map(([id, icon, label]) => (
-          <button key={id} className={tab === id ? 'active' : ''} onClick={() => { if (tab !== id) tap(); setTab(id); }}>
-            <span className="pill" aria-hidden>{icon}</span>{label}
+          <button
+            key={id}
+            className={tab === id ? "active" : ""}
+            onClick={() => {
+              if (tab !== id) tap();
+              setTab(id);
+            }}
+          >
+            <span className="pill" aria-hidden>
+              {icon}
+            </span>
+            {label}
           </button>
         ))}
       </nav>
 
-      {toast && <div className="toast" key={toast.id} role="status">{toast.message}</div>}
+      {toast && (
+        <div className="toast" key={toast.id} role="status">
+          {toast.message}
+        </div>
+      )}
 
       {sheet && (
-        <ExpenseSheet cats={cats} expense={sheet.expense}
+        <ExpenseSheet
+          cats={cats}
+          expense={sheet.expense}
           onClose={() => setSheet(null)}
-          onSaved={(msg) => { setSheet(null); changed(); showToast(msg); }} />
+          onSaved={(msg) => {
+            setSheet(null);
+            changed();
+            showToast(msg);
+          }}
+        />
       )}
     </div>
   );

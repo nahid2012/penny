@@ -10,7 +10,7 @@
   --chip: #e8f6f0;
   --radius: 16px;
   --accent-2: #0a7a55;
-  --ease: cubic-bezier(.2, .8, .2, 1);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color-scheme: light dark;
 }
 
@@ -48,7 +48,12 @@ html {
 body {
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font:
+    16px/1.4 system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -67,11 +72,14 @@ select {
 }
 
 button {
-  transition: transform .12s var(--ease), background-color .2s, opacity .2s;
+  transition:
+    transform 0.12s var(--ease),
+    background-color 0.2s,
+    opacity 0.2s;
 }
 
 button:active {
-  transform: scale(.97);
+  transform: scale(0.97);
 }
 
 .boot {
@@ -90,7 +98,7 @@ button:active {
 header h1 {
   font-size: 22px;
   margin: 8px 0 12px;
-  letter-spacing: -.3px;
+  letter-spacing: -0.3px;
 }
 
 h2 {
@@ -172,7 +180,7 @@ h4 {
 }
 
 .hero-label {
-  opacity: .85;
+  opacity: 0.85;
   font-size: 14px;
 }
 
@@ -184,7 +192,7 @@ h4 {
 }
 
 .hero-sub {
-  opacity: .85;
+  opacity: 0.85;
   font-size: 14px;
 }
 
@@ -243,8 +251,8 @@ h4 {
   background: hsl(var(--h) 65% 52%);
   border-radius: 99px;
   transform-origin: left;
-  animation: grow .8s var(--ease) both;
-  animation-delay: .1s;
+  animation: grow 0.8s var(--ease) both;
+  animation-delay: 0.1s;
 }
 
 /* Lists and transaction rows */
@@ -259,7 +267,7 @@ h4 {
 }
 
 .list li {
-  animation: rise .35s var(--ease) both;
+  animation: rise 0.35s var(--ease) both;
   animation-delay: calc(var(--i, 0) * 35ms);
 }
 
@@ -408,13 +416,13 @@ label {
   line-height: 1;
   background: var(--accent);
   color: var(--accent-text);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
-  animation: pop .45s var(--ease) .15s both;
-  transition: transform .2s var(--ease);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  animation: pop 0.45s var(--ease) 0.15s both;
+  transition: transform 0.2s var(--ease);
 }
 
 .fab:active {
-  transform: scale(.9) rotate(90deg);
+  transform: scale(0.9) rotate(90deg);
 }
 
 /* Bottom navigation */
@@ -450,7 +458,9 @@ nav button.active {
 .pill {
   padding: 3px 20px;
   border-radius: 99px;
-  transition: background-color .25s, transform .25s var(--ease);
+  transition:
+    background-color 0.25s,
+    transform 0.25s var(--ease);
 }
 
 nav button.active .pill {
@@ -462,12 +472,12 @@ nav button.active .pill {
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, .45);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: flex-end;
   z-index: 10;
   backdrop-filter: blur(3px);
-  animation: fade-in .2s ease both;
+  animation: fade-in 0.2s ease both;
 }
 
 .sheet {
@@ -481,7 +491,7 @@ nav button.active .pill {
   gap: 10px;
   max-height: 92vh;
   overflow-y: auto;
-  animation: slide-up .32s var(--ease) both;
+  animation: slide-up 0.32s var(--ease) both;
 }
 
 .sheet-handle {
@@ -509,11 +519,11 @@ nav button.active .pill {
 }
 
 .backdrop.closing {
-  animation: fade-in .2s ease reverse both;
+  animation: fade-in 0.2s ease reverse both;
 }
 
 .backdrop.closing .sheet {
-  animation: slide-up .2s ease-in reverse both;
+  animation: slide-up 0.2s ease-in reverse both;
 }
 
 /* Toast notification */
@@ -528,7 +538,7 @@ nav button.active .pill {
   border-radius: 99px;
   font-size: 14px;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   animation: toast 2.2s ease both;
   pointer-events: none;
 }
@@ -605,8 +615,8 @@ nav button.active .pill {
   *,
   *::before,
   *::after {
-    animation-duration: .01ms !important;
+    animation-duration: 0.01ms !important;
     animation-delay: 0s !important;
-    transition-duration: .01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
