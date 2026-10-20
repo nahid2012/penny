@@ -7,7 +7,7 @@ import {
   monthLabel,
   todayLocal,
 } from "./money";
-import { ExpenseRow, Empty } from "./components";
+import { ExpenseRow, Empty, CategoryIcon } from "./components";
 import { useCountUp } from "./useCountUp";
 import { CATEGORY_STYLE } from "./config";
 import { tap } from "./haptics";
