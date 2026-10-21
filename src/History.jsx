@@ -9,15 +9,23 @@ export default function History({ cats, version, onEdit }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   useEffect(() => {
+    let cancelled = false;
     listExpenses({
       from: f.from || undefined,
       to: f.to ? addDays(f.to, 1) : undefined, // "to" is inclusive in the UI
       categoryId: f.categoryId ? Number(f.categoryId) : undefined,
       search: f.search,
-    }).then(setRows);
+    }).then((r) => {
+      if (!cancelled) setRows(r);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [f, version]);
 
-  const total = rows.reduce((sum, x) => sum + x.amountMinor, 0);
+  // shareMinor = the part of each expense that matches the category filter
+  // (a receipt only contributes its matching items), so filtered totals add up.
+  const total = rows.reduce((sum, x) => sum + x.shareMinor, 0);
   const filtered = f.from || f.to || f.categoryId || f.search;
   const period =
     f.from || f.to
@@ -29,7 +37,7 @@ export default function History({ cats, version, onEdit }) {
       <section className="card filters">
         <input
           type="search"
-          placeholder="Search descriptions"
+          placeholder="Search titles, items and notes"
           value={f.search}
           onChange={set("search")}
         />

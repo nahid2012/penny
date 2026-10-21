@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   parseAmount,
+  parseQuantity,
+  formatQuantity,
+  lineTotal,
   formatAmount,
   monthRange,
   isRealDate,
@@ -28,6 +31,48 @@ describe("parseAmount", () => {
       "1e3",
     ])
       expect(parseAmount(bad)).toBeNull();
+  });
+});
+
+describe("parseQuantity / formatQuantity", () => {
+  it("stores quantities as integer thousandths", () => {
+    expect(parseQuantity("1")).toBe(1000);
+    expect(parseQuantity("1.5")).toBe(1500);
+    expect(parseQuantity("0.25")).toBe(250);
+    expect(parseQuantity("0.001")).toBe(1);
+  });
+  it("rejects invalid input", () => {
+    for (const bad of [
+      "0",
+      "0.000",
+      "-1",
+      "abc",
+      "1.2345",
+      "",
+      "1,5",
+      "1e3",
+      "999999",
+    ])
+      expect(parseQuantity(bad)).toBeNull();
+  });
+  it("formats without trailing zeros", () => {
+    expect(formatQuantity(1000)).toBe("1");
+    expect(formatQuantity(1500)).toBe("1.5");
+    expect(formatQuantity(250)).toBe("0.25");
+  });
+});
+
+describe("lineTotal", () => {
+  it("multiplies exactly for whole quantities", () => {
+    expect(lineTotal(4500, 3000)).toBe(13500);
+  });
+  it("rounds half-up to the nearest minor unit", () => {
+    expect(lineTotal(1999, 1500)).toBe(2999); // 2998.5
+    expect(lineTotal(1, 499)).toBe(0); // 0.499
+    expect(lineTotal(1, 500)).toBe(1); // 0.5
+  });
+  it("returns null instead of overflowing", () => {
+    expect(lineTotal(Number.MAX_SAFE_INTEGER, 2000)).toBeNull();
   });
 });
 

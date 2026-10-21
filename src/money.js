@@ -10,6 +10,34 @@ export function parseAmount(input) {
   return minor > 0 ? minor : null;
 }
 
+// Quantities are stored as integer thousandths so "1.5 kg" is 1500 and no
+// floating point is involved. Up to 3 decimals, must be > 0.
+export const QTY_SCALE = 1000;
+const MAX_QTY_MILLI = 100_000 * QTY_SCALE; // 100,000 units
+
+// "1.5" -> 1500. Returns null if invalid.
+export function parseQuantity(input) {
+  const s = String(input).trim();
+  if (!/^\d+(\.\d{1,3})?$/.test(s)) return null;
+  const [whole, frac = ""] = s.split(".");
+  const milli = Number(whole) * QTY_SCALE + Number(frac.padEnd(3, "0"));
+  return milli > 0 && milli <= MAX_QTY_MILLI ? milli : null;
+}
+
+// 1500 -> "1.5", 2000 -> "2"
+export function formatQuantity(milli) {
+  return String(Number((milli / QTY_SCALE).toFixed(3)));
+}
+
+// unit price (minor units) x quantity (thousandths) -> minor units,
+// rounded half-up with integer maths. Returns null if it can't be
+// represented safely.
+export function lineTotal(unitMinor, qtyMilli) {
+  const product = unitMinor * qtyMilli;
+  if (!Number.isSafeInteger(product)) return null;
+  return Math.floor((product + QTY_SCALE / 2) / QTY_SCALE);
+}
+
 export function formatAmount(minor) {
   const major = (minor / CURRENCY.minorPerMajor).toLocaleString("en-US", {
     minimumFractionDigits: 2,
