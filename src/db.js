@@ -1,11 +1,6 @@
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
 import { CURRENCY, CATEGORIES } from "./config";
-import {
-  monthRange,
-  isRealDate,
-  lineTotal,
-  MAX_AMOUNT_MINOR,
-} from "./money";
+import { monthRange, isRealDate, lineTotal, MAX_AMOUNT_MINOR } from "./money";
 import { primaryCategoryId } from "./receipt";
 
 const sqlite = new SQLiteConnection(CapacitorSQLite);

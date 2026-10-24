@@ -43,13 +43,14 @@ export default function History({ cats, version, onEdit }) {
   const visibleRows = invalidRange ? [] : rows;
   const total = visibleRows.reduce((sum, x) => sum + x.shareMinor, 0);
   const filtered = f.from || f.to || f.categoryId || f.search;
-  const period = f.from && f.to
-    ? `${formatDate(f.from)} → ${formatDate(f.to)}`
-    : f.from
-      ? `From ${formatDate(f.from)}`
-      : f.to
-        ? `Through ${formatDate(f.to)}`
-        : "All dates";
+  const period =
+    f.from && f.to
+      ? `${formatDate(f.from)} → ${formatDate(f.to)}`
+      : f.from
+        ? `From ${formatDate(f.from)}`
+        : f.to
+          ? `Through ${formatDate(f.to)}`
+          : "All dates";
 
   return (
     <>

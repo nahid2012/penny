@@ -44,7 +44,10 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
     : Boolean(f.description.trim() || f.amount.trim());
 
   const requestClose = () => {
-    if (dirty && !window.confirm("Discard this expense? Your changes won't be saved."))
+    if (
+      dirty &&
+      !window.confirm("Discard this expense? Your changes won't be saved.")
+    )
       return;
     dismiss(onClose);
   };
@@ -158,11 +161,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
             Delete
           </button>
         )}
-        <button
-          className="btn ghost"
-          type="button"
-          onClick={requestClose}
-        >
+        <button className="btn ghost" type="button" onClick={requestClose}>
           Cancel
         </button>
       </form>
