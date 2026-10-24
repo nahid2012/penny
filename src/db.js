@@ -1,6 +1,11 @@
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
 import { CURRENCY, CATEGORIES } from "./config";
-import { monthRange, isRealDate, lineTotal } from "./money";
+import {
+  monthRange,
+  isRealDate,
+  lineTotal,
+  MAX_AMOUNT_MINOR,
+} from "./money";
 import { primaryCategoryId } from "./receipt";
 
 const sqlite = new SQLiteConnection(CapacitorSQLite);
@@ -79,7 +84,11 @@ export async function initDb() {
 
 function validate({ description, amountMinor, categoryId, date }) {
   if (!description?.trim()) throw new Error("Description is required.");
-  if (!Number.isInteger(amountMinor) || amountMinor <= 0)
+  if (
+    !Number.isSafeInteger(amountMinor) ||
+    amountMinor <= 0 ||
+    amountMinor > MAX_AMOUNT_MINOR
+  )
     throw new Error("Amount must be greater than zero.");
   if (!Number.isInteger(categoryId)) throw new Error("Choose a category.");
   if (!isRealDate(date)) throw new Error("Date is invalid.");
@@ -99,7 +108,11 @@ function buildReceipt({ title, date, items }) {
     if (!it.name?.trim()) throw new Error(`${at}: name is required.`);
     if (!Number.isInteger(it.categoryId))
       throw new Error(`${at}: choose a category.`);
-    if (!Number.isInteger(it.unitPriceMinor) || it.unitPriceMinor <= 0)
+    if (
+      !Number.isSafeInteger(it.unitPriceMinor) ||
+      it.unitPriceMinor <= 0 ||
+      it.unitPriceMinor > MAX_AMOUNT_MINOR
+    )
       throw new Error(`${at}: price must be greater than zero.`);
     if (!Number.isInteger(it.quantityMilli) || it.quantityMilli <= 0)
       throw new Error(`${at}: quantity must be greater than zero.`);
@@ -115,7 +128,7 @@ function buildReceipt({ title, date, items }) {
     };
   });
   const total = lines.reduce((s, l) => s + l.lineTotalMinor, 0);
-  if (!Number.isSafeInteger(total))
+  if (!Number.isSafeInteger(total) || total > MAX_AMOUNT_MINOR)
     throw new Error("Receipt total is too large.");
   return { lines, total, headerCategoryId: primaryCategoryId(lines) };
 }

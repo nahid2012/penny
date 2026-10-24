@@ -1,5 +1,7 @@
 import { CURRENCY } from "./config";
 
+export const MAX_AMOUNT_MINOR = 100_000_000 * CURRENCY.minorPerMajor;
+
 // "125.5" -> 12550. Returns null if invalid. No floating point involved.
 export function parseAmount(input) {
   const s = String(input).trim();
@@ -7,7 +9,9 @@ export function parseAmount(input) {
   const [whole, frac = ""] = s.split(".");
   const minor =
     Number(whole) * CURRENCY.minorPerMajor + Number(frac.padEnd(2, "0"));
-  return minor > 0 ? minor : null;
+  return Number.isSafeInteger(minor) && minor > 0 && minor <= MAX_AMOUNT_MINOR
+    ? minor
+    : null;
 }
 
 // Quantities are stored as integer thousandths so "1.5 kg" is 1500 and no

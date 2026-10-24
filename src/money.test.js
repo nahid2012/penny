@@ -32,6 +32,10 @@ describe("parseAmount", () => {
     ])
       expect(parseAmount(bad)).toBeNull();
   });
+  it("rejects unsafe and unreasonably large amounts", () => {
+    expect(parseAmount("90071992547409.92")).toBeNull();
+    expect(parseAmount("100000001")).toBeNull();
+  });
 });
 
 describe("parseQuantity / formatQuantity", () => {
