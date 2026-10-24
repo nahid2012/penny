@@ -11,6 +11,11 @@ export default function History({ cats, version, onEdit }) {
 
   useEffect(() => {
     let cancelled = false;
+    if (f.from && f.to && f.from > f.to) {
+      return () => {
+        cancelled = true;
+      };
+    }
     listExpenses({
       from: f.from || undefined,
       to: f.to ? addDays(f.to, 1) : undefined, // "to" is inclusive in the UI
@@ -34,12 +39,17 @@ export default function History({ cats, version, onEdit }) {
 
   // shareMinor = the part of each expense that matches the category filter
   // (a receipt only contributes its matching items), so filtered totals add up.
-  const total = rows.reduce((sum, x) => sum + x.shareMinor, 0);
+  const invalidRange = f.from && f.to && f.from > f.to;
+  const visibleRows = invalidRange ? [] : rows;
+  const total = visibleRows.reduce((sum, x) => sum + x.shareMinor, 0);
   const filtered = f.from || f.to || f.categoryId || f.search;
-  const period =
-    f.from || f.to
-      ? `${f.from ? formatDate(f.from) : "the beginning"} → ${f.to ? formatDate(f.to) : "today"}`
-      : "All dates";
+  const period = f.from && f.to
+    ? `${formatDate(f.from)} → ${formatDate(f.to)}`
+    : f.from
+      ? `From ${formatDate(f.from)}`
+      : f.to
+        ? `Through ${formatDate(f.to)}`
+        : "All dates";
 
   return (
     <>
@@ -80,18 +90,18 @@ export default function History({ cats, version, onEdit }) {
         )}
       </section>
 
-      {error && (
+      {(invalidRange || error) && (
         <p className="error" role="alert">
-          {error}
+          {invalidRange ? "From date must not be after To date." : error}
         </p>
       )}
 
       <p className="summary-line">
-        <strong>{formatAmount(total)}</strong> · {rows.length} transaction
-        {rows.length === 1 ? "" : "s"} · {period}
+        <strong>{formatAmount(total)}</strong> · {visibleRows.length}{" "}
+        transaction{visibleRows.length === 1 ? "" : "s"} · {period}
       </p>
 
-      {rows.length === 0 ? (
+      {visibleRows.length === 0 ? (
         <Empty
           title={filtered ? "No matches" : "No expenses yet"}
           hint={
@@ -102,7 +112,7 @@ export default function History({ cats, version, onEdit }) {
         />
       ) : (
         <ul className="list card">
-          {rows.map((x, i) => (
+          {visibleRows.map((x, i) => (
             <ExpenseRow key={x.id} x={x} i={i} onClick={onEdit} />
           ))}
         </ul>
