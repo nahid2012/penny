@@ -65,9 +65,14 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
       )
     )
       return;
-    await deleteExpense(expense.id);
-    success();
-    dismiss(() => onSaved("Expense deleted"));
+    try {
+      await deleteExpense(expense.id);
+      success();
+      dismiss(() => onSaved("Expense deleted"));
+    } catch (err) {
+      warn();
+      setError(err.message);
+    }
   }
 
   return (
