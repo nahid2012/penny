@@ -20,6 +20,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
         },
   );
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const [closing, setClosing] = useState(false);
 
@@ -31,11 +32,13 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
 
   async function save(e) {
     e.preventDefault();
+    if (saving) return;
     const amountMinor = parseAmount(f.amount);
     if (amountMinor === null) {
       warn();
       return setError("Enter a valid amount, e.g. 250 or 99.50");
     }
+    setSaving(true);
     const payload = {
       description: f.description,
       amountMinor,
@@ -51,6 +54,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
     } catch (err) {
       warn();
       setError(err.message);
+      setSaving(false);
     }
   }
 
@@ -119,7 +123,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
             {error}
           </p>
         )}
-        <button className="btn primary" type="submit">
+        <button className="btn primary" type="submit" disabled={saving}>
           {expense ? "Save changes" : "Add expense"}
         </button>
         {expense && (
