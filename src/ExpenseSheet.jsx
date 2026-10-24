@@ -1,41 +1,77 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { addExpense, updateExpense, deleteExpense } from "./db";
 import { parseAmount, formatAmount, todayLocal } from "./money";
-import { success, warn, tap } from "./haptics";
+import { CURRENCY } from "./config";
+import { success, warn } from "./haptics";
 
-export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
+export default function ExpenseSheet({
+  cats,
+  expense,
+  onClose,
+  onSaved,
+  onRegisterBackHandler,
+}) {
+  const initialAmount = expense
+    ? (expense.amountMinor / CURRENCY.minorPerMajor).toFixed(2)
+    : "";
+  const initialCategoryId = expense?.categoryId ?? cats[0].id;
+  const initialDate = expense?.date ?? todayLocal();
   const [f, setF] = useState(
     expense
       ? {
           description: expense.description,
-          amount: (expense.amountMinor / 100).toFixed(2),
-          categoryId: expense.categoryId,
-          date: expense.date,
+          amount: initialAmount,
+          categoryId: initialCategoryId,
+          date: initialDate,
         }
       : {
           description: "",
           amount: "",
-          categoryId: cats[0].id,
-          date: todayLocal(),
+          categoryId: initialCategoryId,
+          date: initialDate,
         },
   );
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const [closing, setClosing] = useState(false);
 
-  const dismiss = (after) => {
+  const dismiss = useCallback((after) => {
     // play the slide-down, then tell the parent
     setClosing(true);
     setTimeout(after, 200);
-  };
+  }, []);
+
+  const dirty = expense
+    ? f.description !== expense.description ||
+      f.amount !== initialAmount ||
+      Number(f.categoryId) !== expense.categoryId ||
+      f.date !== expense.date
+    : Boolean(f.description.trim() || f.amount.trim());
+
+  const requestClose = useCallback(() => {
+    if (
+      dirty &&
+      !window.confirm("Discard this expense? Your changes won't be saved.")
+    )
+      return;
+    dismiss(onClose);
+  }, [dirty, dismiss, onClose]);
+
+  useEffect(
+    () => onRegisterBackHandler?.(requestClose),
+    [onRegisterBackHandler, requestClose],
+  );
 
   async function save(e) {
     e.preventDefault();
+    if (saving) return;
     const amountMinor = parseAmount(f.amount);
     if (amountMinor === null) {
       warn();
       return setError("Enter a valid amount, e.g. 250 or 99.50");
     }
+    setSaving(true);
     const payload = {
       description: f.description,
       amountMinor,
@@ -51,6 +87,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
     } catch (err) {
       warn();
       setError(err.message);
+      setSaving(false);
     }
   }
 
@@ -61,18 +98,26 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
       )
     )
       return;
-    await deleteExpense(expense.id);
-    success();
-    dismiss(() => onSaved("Expense deleted"));
+    try {
+      await deleteExpense(expense.id);
+      success();
+      dismiss(() => onSaved("Expense deleted"));
+    } catch (err) {
+      warn();
+      setError(err.message);
+    }
   }
 
   return (
     <div
       className={`backdrop ${closing ? "closing" : ""}`}
-      onClick={() => dismiss(onClose)}
+      onClick={requestClose}
     >
       <form
         className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={expense ? "Edit expense" : "New expense"}
         onClick={(e) => e.stopPropagation()}
         onSubmit={save}
       >
@@ -80,7 +125,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
         <h2>{expense ? "Edit expense" : "New expense"}</h2>
 
         <label className="amount-field">
-          <span>৳</span>
+          <span>{CURRENCY.symbol}</span>
           <input
             autoFocus
             inputMode="decimal"
@@ -119,7 +164,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
             {error}
           </p>
         )}
-        <button className="btn primary" type="submit">
+        <button className="btn primary" type="submit" disabled={saving}>
           {expense ? "Save changes" : "Add expense"}
         </button>
         {expense && (
@@ -127,11 +172,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
             Delete
           </button>
         )}
-        <button
-          className="btn ghost"
-          type="button"
-          onClick={() => dismiss(onClose)}
-        >
+        <button className="btn ghost" type="button" onClick={requestClose}>
           Cancel
         </button>
       </form>

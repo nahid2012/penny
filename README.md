@@ -4,6 +4,8 @@ Personal expense tracker. Single user, fully offline, Android (React + Capacitor
 
 ## Setup
 
+Requires Node.js 22.12 or newer.
+
     npm install
     npm run build
     npx cap sync

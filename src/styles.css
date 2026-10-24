@@ -12,6 +12,10 @@
   --accent-2: #0a7a55;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -93,6 +97,10 @@ button:active {
   min-height: 100%;
   padding: calc(env(safe-area-inset-top) + 8px) 16px
     calc(96px + env(safe-area-inset-bottom));
+}
+
+.view {
+  animation: rise 0.3s var(--ease) both;
 }
 
 header h1 {
@@ -618,5 +626,9 @@ nav button.active .pill {
     animation-duration: 0.01ms !important;
     animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .toast {
+    animation: none;
   }
 }

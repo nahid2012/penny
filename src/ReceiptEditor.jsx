@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { addReceipt, updateReceipt, getReceipt, deleteExpense } from "./db";
 import {
   formatAmount,
@@ -10,7 +10,7 @@ import {
 } from "./money";
 import { evaluateReceipt, newItem } from "./receipt";
 import { useCountUp } from "./useCountUp";
-import { CATEGORY_STYLE } from "./config";
+import { CATEGORY_STYLE, CURRENCY } from "./config";
 import { success, warn, tap } from "./haptics";
 
 // Compare drafts without the React-only `key`, to know if anything changed.
@@ -34,13 +34,19 @@ const toDraft = (r) => ({
   items: r.items.map((it) => ({
     ...newItem(it.categoryId),
     name: it.name,
-    price: (it.unitPriceMinor / 100).toFixed(2),
+    price: (it.unitPriceMinor / CURRENCY.minorPerMajor).toFixed(2),
     qty: formatQuantity(it.quantityMilli),
   })),
 });
 
 // Full-screen editor for creating or editing a receipt (id = null -> new).
-export default function ReceiptEditor({ cats, id, onClose, onSaved }) {
+export default function ReceiptEditor({
+  cats,
+  id,
+  onClose,
+  onSaved,
+  onRegisterBackHandler,
+}) {
   const [state, setState] = useState(() => {
     if (id) return null; // editing: wait for the receipt to load
     const d = blank(cats);
@@ -110,14 +116,19 @@ export default function ReceiptEditor({ cats, id, onClose, onSaved }) {
 
   const dirty = draft && snapshot(draft) !== state.base;
 
-  const requestClose = () => {
+  const requestClose = useCallback(() => {
     if (
       dirty &&
       !window.confirm("Discard this receipt? Your changes won't be saved.")
     )
       return;
     dismiss(onClose);
-  };
+  }, [dirty, onClose]);
+
+  useEffect(
+    () => onRegisterBackHandler?.(requestClose),
+    [onRegisterBackHandler, requestClose],
+  );
 
   async function save() {
     setShowErrors(true);

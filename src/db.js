@@ -1,6 +1,6 @@
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
 import { CURRENCY, CATEGORIES } from "./config";
-import { monthRange, isRealDate, lineTotal } from "./money";
+import { monthRange, isRealDate, lineTotal, MAX_AMOUNT_MINOR } from "./money";
 import { primaryCategoryId } from "./receipt";
 
 const sqlite = new SQLiteConnection(CapacitorSQLite);
@@ -33,7 +33,8 @@ const MIGRATIONS = [
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
    );
-   CREATE INDEX idx_expenses_date ON expenses(expense_date);`,
+   CREATE INDEX idx_expenses_date ON expenses(expense_date);
+   PRAGMA user_version = 1;`,
 
   `ALTER TABLE expenses ADD COLUMN kind TEXT NOT NULL DEFAULT 'simple'
      CHECK (kind IN ('simple', 'receipt'));
@@ -56,30 +57,66 @@ const MIGRATIONS = [
        FROM expenses e WHERE e.kind = 'simple'
      UNION ALL
      SELECT i.expense_id, e.expense_date, i.category_id, i.line_total_minor
-       FROM expense_items i JOIN expenses e ON e.id = i.expense_id;`,
+       FROM expense_items i JOIN expenses e ON e.id = i.expense_id;
+   PRAGMA user_version = 2;`,
 ];
+
+let initPromise;
 
 export async function initDb() {
   if (db) return;
-  db = await sqlite.createConnection("penny", false, "no-encryption", 1, false);
-  await db.open();
-  await db.execute("PRAGMA foreign_keys = ON;");
+  if (!initPromise) {
+    initPromise = initializeDb().catch((error) => {
+      initPromise = null;
+      throw error;
+    });
+  }
+  await initPromise;
+}
 
-  const res = await db.query("PRAGMA user_version;");
+async function initializeDb() {
+  let connection;
+  try {
+    connection = await sqlite.retrieveConnection("penny", false);
+  } catch {
+    connection = await sqlite.createConnection(
+      "penny",
+      false,
+      "no-encryption",
+      1,
+      false,
+    );
+  }
+
+  if (typeof connection.isDBOpen === "function") {
+    const open = await connection.isDBOpen();
+    if (!open.result) await connection.open();
+  } else {
+    await connection.open();
+  }
+  await connection.execute("PRAGMA foreign_keys = ON;", false);
+
+  const res = await connection.query("PRAGMA user_version;");
   const current = res.values?.[0]?.user_version ?? 0;
   for (let v = current; v < MIGRATIONS.length; v++) {
-    await db.execute(MIGRATIONS[v]);
-    await db.execute(`PRAGMA user_version = ${v + 1};`);
+    await connection.execute(MIGRATIONS[v]);
   }
 
   for (const name of CATEGORIES) {
-    await db.run("INSERT OR IGNORE INTO categories (name) VALUES (?)", [name]);
+    await connection.run("INSERT OR IGNORE INTO categories (name) VALUES (?)", [
+      name,
+    ]);
   }
+  db = connection;
 }
 
 function validate({ description, amountMinor, categoryId, date }) {
   if (!description?.trim()) throw new Error("Description is required.");
-  if (!Number.isInteger(amountMinor) || amountMinor <= 0)
+  if (
+    !Number.isSafeInteger(amountMinor) ||
+    amountMinor <= 0 ||
+    amountMinor > MAX_AMOUNT_MINOR
+  )
     throw new Error("Amount must be greater than zero.");
   if (!Number.isInteger(categoryId)) throw new Error("Choose a category.");
   if (!isRealDate(date)) throw new Error("Date is invalid.");
@@ -99,7 +136,11 @@ function buildReceipt({ title, date, items }) {
     if (!it.name?.trim()) throw new Error(`${at}: name is required.`);
     if (!Number.isInteger(it.categoryId))
       throw new Error(`${at}: choose a category.`);
-    if (!Number.isInteger(it.unitPriceMinor) || it.unitPriceMinor <= 0)
+    if (
+      !Number.isSafeInteger(it.unitPriceMinor) ||
+      it.unitPriceMinor <= 0 ||
+      it.unitPriceMinor > MAX_AMOUNT_MINOR
+    )
       throw new Error(`${at}: price must be greater than zero.`);
     if (!Number.isInteger(it.quantityMilli) || it.quantityMilli <= 0)
       throw new Error(`${at}: quantity must be greater than zero.`);
@@ -115,7 +156,7 @@ function buildReceipt({ title, date, items }) {
     };
   });
   const total = lines.reduce((s, l) => s + l.lineTotalMinor, 0);
-  if (!Number.isSafeInteger(total))
+  if (!Number.isSafeInteger(total) || total > MAX_AMOUNT_MINOR)
     throw new Error("Receipt total is too large.");
   return { lines, total, headerCategoryId: primaryCategoryId(lines) };
 }
@@ -453,7 +494,7 @@ export async function importAll(data) {
         });
       }
     } catch (e) {
-      throw new Error(`Row ${i + 1}: ${e.message}`);
+      throw new Error(`Row ${i + 1}: ${e.message}`, { cause: e });
     }
   }
   await db.executeSet(set, true);
