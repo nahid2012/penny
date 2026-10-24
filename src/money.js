@@ -86,10 +86,16 @@ export function addDays(dateStr, n) {
 }
 
 export function formatDate(dateStr) {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
+  const options = {
     day: "numeric",
     month: "short",
-  });
+  };
+  if (Number(dateStr.slice(0, 4)) !== new Date().getFullYear())
+    options.year = "numeric";
+  return new Date(dateStr + "T00:00:00").toLocaleDateString(
+    "en-GB",
+    options,
+  );
 }
 
 export function monthLabel(ym) {
