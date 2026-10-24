@@ -499,7 +499,7 @@ export async function importAll(data) {
         });
       }
     } catch (e) {
-      throw new Error(`Row ${i + 1}: ${e.message}`);
+      throw new Error(`Row ${i + 1}: ${e.message}`, { cause: e });
     }
   }
   await db.executeSet(set, true);

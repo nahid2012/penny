@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { addReceipt, updateReceipt, getReceipt, deleteExpense } from "./db";
 import {
   formatAmount,
@@ -116,14 +116,14 @@ export default function ReceiptEditor({
 
   const dirty = draft && snapshot(draft) !== state.base;
 
-  const requestClose = () => {
+  const requestClose = useCallback(() => {
     if (
       dirty &&
       !window.confirm("Discard this receipt? Your changes won't be saved.")
     )
       return;
     dismiss(onClose);
-  };
+  }, [dirty, onClose]);
 
   useEffect(
     () => onRegisterBackHandler?.(requestClose),

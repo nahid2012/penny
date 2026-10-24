@@ -26,7 +26,6 @@ export default function App() {
   const [version, setVersion] = useState(0); // bump to make views reload
   const sheetRef = useRef(sheet);
   const backHandlerRef = useRef(null);
-  sheetRef.current = sheet;
 
   const [toast, setToast] = useState(null);
   const showToast = (message) => {
@@ -41,6 +40,10 @@ export default function App() {
       if (backHandlerRef.current === handler) backHandlerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    sheetRef.current = sheet;
+  }, [sheet]);
 
   const TABS = [
     ["home", "🏠", "Home"],

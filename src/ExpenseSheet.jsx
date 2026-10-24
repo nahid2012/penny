@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { addExpense, updateExpense, deleteExpense } from "./db";
 import { parseAmount, formatAmount, todayLocal } from "./money";
-import { success, warn, tap } from "./haptics";
+import { success, warn } from "./haptics";
 
 export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
   const [f, setF] = useState(
