@@ -99,6 +99,10 @@ button:active {
     calc(96px + env(safe-area-inset-bottom));
 }
 
+.view {
+  animation: rise 0.3s var(--ease) both;
+}
+
 header h1 {
   font-size: 22px;
   margin: 8px 0 12px;
