@@ -623,4 +623,8 @@ nav button.active .pill {
     animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
+
+  .toast {
+    animation: none;
+  }
 }
