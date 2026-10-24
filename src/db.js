@@ -38,7 +38,8 @@ const MIGRATIONS = [
      created_at TEXT NOT NULL DEFAULT (datetime('now')),
      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
    );
-   CREATE INDEX idx_expenses_date ON expenses(expense_date);`,
+   CREATE INDEX idx_expenses_date ON expenses(expense_date);
+   PRAGMA user_version = 1;`,
 
   `ALTER TABLE expenses ADD COLUMN kind TEXT NOT NULL DEFAULT 'simple'
      CHECK (kind IN ('simple', 'receipt'));
@@ -61,25 +62,57 @@ const MIGRATIONS = [
        FROM expenses e WHERE e.kind = 'simple'
      UNION ALL
      SELECT i.expense_id, e.expense_date, i.category_id, i.line_total_minor
-       FROM expense_items i JOIN expenses e ON e.id = i.expense_id;`,
+       FROM expense_items i JOIN expenses e ON e.id = i.expense_id;
+   PRAGMA user_version = 2;`,
 ];
+
+let initPromise;
 
 export async function initDb() {
   if (db) return;
-  db = await sqlite.createConnection("penny", false, "no-encryption", 1, false);
-  await db.open();
-  await db.execute("PRAGMA foreign_keys = ON;");
+  if (!initPromise) {
+    initPromise = initializeDb().catch((error) => {
+      initPromise = null;
+      throw error;
+    });
+  }
+  await initPromise;
+}
 
-  const res = await db.query("PRAGMA user_version;");
+async function initializeDb() {
+  let connection;
+  try {
+    connection = await sqlite.retrieveConnection("penny", false);
+  } catch {
+    connection = await sqlite.createConnection(
+      "penny",
+      false,
+      "no-encryption",
+      1,
+      false,
+    );
+  }
+
+  if (typeof connection.isDBOpen === "function") {
+    const open = await connection.isDBOpen();
+    if (!open.result) await connection.open();
+  } else {
+    await connection.open();
+  }
+  await connection.execute("PRAGMA foreign_keys = ON;");
+
+  const res = await connection.query("PRAGMA user_version;");
   const current = res.values?.[0]?.user_version ?? 0;
   for (let v = current; v < MIGRATIONS.length; v++) {
-    await db.execute(MIGRATIONS[v]);
-    await db.execute(`PRAGMA user_version = ${v + 1};`);
+    await connection.execute(MIGRATIONS[v]);
   }
 
   for (const name of CATEGORIES) {
-    await db.run("INSERT OR IGNORE INTO categories (name) VALUES (?)", [name]);
+    await connection.run("INSERT OR IGNORE INTO categories (name) VALUES (?)", [
+      name,
+    ]);
   }
+  db = connection;
 }
 
 function validate({ description, amountMinor, categoryId, date }) {
