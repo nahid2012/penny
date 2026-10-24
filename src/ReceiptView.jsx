@@ -1,17 +1,10 @@
 import { useEffect, useState } from "react";
 import { getReceipt } from "./db";
-import { formatAmount, formatQuantity } from "./money";
+import { formatAmount, formatQuantity, formatDate } from "./money";
 import { categoryTotals } from "./receipt";
 import { CATEGORY_STYLE } from "./config";
 import { CategoryIcon } from "./components";
 import { useCountUp } from "./useCountUp";
-
-const longDate = (d) =>
-  new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 
 // Read-only view of a saved receipt. Editing happens in ReceiptEditor.
 export default function ReceiptView({ id, onClose, onEdit }) {
@@ -73,7 +66,7 @@ export default function ReceiptView({ id, onClose, onEdit }) {
               <span className="hero-label">{r.title}</span>
               <span className="hero-amount">{formatAmount(total)}</span>
               <span className="hero-sub">
-                {longDate(r.date)} · {r.items.length} item
+                {formatDate(r.date)} · {r.items.length} item
                 {r.items.length === 1 ? "" : "s"}
               </span>
             </section>
