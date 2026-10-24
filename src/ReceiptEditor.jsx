@@ -10,7 +10,7 @@ import {
 } from "./money";
 import { evaluateReceipt, newItem } from "./receipt";
 import { useCountUp } from "./useCountUp";
-import { CATEGORY_STYLE } from "./config";
+import { CATEGORY_STYLE, CURRENCY } from "./config";
 import { success, warn, tap } from "./haptics";
 
 // Compare drafts without the React-only `key`, to know if anything changed.
@@ -34,7 +34,7 @@ const toDraft = (r) => ({
   items: r.items.map((it) => ({
     ...newItem(it.categoryId),
     name: it.name,
-    price: (it.unitPriceMinor / 100).toFixed(2),
+    price: (it.unitPriceMinor / CURRENCY.minorPerMajor).toFixed(2),
     qty: formatQuantity(it.quantityMilli),
   })),
 });

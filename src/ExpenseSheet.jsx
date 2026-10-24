@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { addExpense, updateExpense, deleteExpense } from "./db";
 import { parseAmount, formatAmount, todayLocal } from "./money";
+import { CURRENCY } from "./config";
 import { success, warn } from "./haptics";
 
 export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
@@ -8,7 +9,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
     expense
       ? {
           description: expense.description,
-          amount: (expense.amountMinor / 100).toFixed(2),
+          amount: (expense.amountMinor / CURRENCY.minorPerMajor).toFixed(2),
           categoryId: expense.categoryId,
           date: expense.date,
         }
@@ -89,7 +90,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
         <h2>{expense ? "Edit expense" : "New expense"}</h2>
 
         <label className="amount-field">
-          <span>৳</span>
+          <span>{CURRENCY.symbol}</span>
           <input
             autoFocus
             inputMode="decimal"
