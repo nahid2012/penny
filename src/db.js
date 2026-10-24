@@ -99,7 +99,7 @@ async function initializeDb() {
   } else {
     await connection.open();
   }
-  await connection.execute("PRAGMA foreign_keys = ON;");
+  await connection.execute("PRAGMA foreign_keys = ON;", false);
 
   const res = await connection.query("PRAGMA user_version;");
   const current = res.values?.[0]?.user_version ?? 0;
