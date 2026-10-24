@@ -164,6 +164,7 @@ export default function App() {
         <ExpenseSheet
           cats={cats}
           expense={sheet.expense}
+          onRegisterBackHandler={registerBackHandler}
           onClose={() => setSheet(null)}
           onSaved={saved}
         />

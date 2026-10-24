@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { addExpense, updateExpense, deleteExpense } from "./db";
 import { parseAmount, formatAmount, todayLocal } from "./money";
 import { CURRENCY } from "./config";
 import { success, warn } from "./haptics";
 
-export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
+export default function ExpenseSheet({
+  cats,
+  expense,
+  onClose,
+  onSaved,
+  onRegisterBackHandler,
+}) {
   const initialAmount = expense
     ? (expense.amountMinor / CURRENCY.minorPerMajor).toFixed(2)
     : "";
@@ -30,11 +36,11 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const [closing, setClosing] = useState(false);
 
-  const dismiss = (after) => {
+  const dismiss = useCallback((after) => {
     // play the slide-down, then tell the parent
     setClosing(true);
     setTimeout(after, 200);
-  };
+  }, []);
 
   const dirty = expense
     ? f.description !== expense.description ||
@@ -43,14 +49,19 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
       f.date !== expense.date
     : Boolean(f.description.trim() || f.amount.trim());
 
-  const requestClose = () => {
+  const requestClose = useCallback(() => {
     if (
       dirty &&
       !window.confirm("Discard this expense? Your changes won't be saved.")
     )
       return;
     dismiss(onClose);
-  };
+  }, [dirty, dismiss, onClose]);
+
+  useEffect(
+    () => onRegisterBackHandler?.(requestClose),
+    [onRegisterBackHandler, requestClose],
+  );
 
   async function save(e) {
     e.preventDefault();
