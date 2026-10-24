@@ -40,7 +40,13 @@ const toDraft = (r) => ({
 });
 
 // Full-screen editor for creating or editing a receipt (id = null -> new).
-export default function ReceiptEditor({ cats, id, onClose, onSaved }) {
+export default function ReceiptEditor({
+  cats,
+  id,
+  onClose,
+  onSaved,
+  onRegisterBackHandler,
+}) {
   const [state, setState] = useState(() => {
     if (id) return null; // editing: wait for the receipt to load
     const d = blank(cats);
@@ -118,6 +124,11 @@ export default function ReceiptEditor({ cats, id, onClose, onSaved }) {
       return;
     dismiss(onClose);
   };
+
+  useEffect(
+    () => onRegisterBackHandler?.(requestClose),
+    [onRegisterBackHandler, requestClose],
+  );
 
   async function save() {
     setShowErrors(true);

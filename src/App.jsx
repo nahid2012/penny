@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
 import { initDb, listCategories } from "./db";
 import Dashboard from "./Dashboard";
 import History from "./History";
@@ -23,6 +24,9 @@ export default function App() {
   //      | { type: "receiptEdit", id: number | null }
   const [sheet, setSheet] = useState(null);
   const [version, setVersion] = useState(0); // bump to make views reload
+  const sheetRef = useRef(sheet);
+  const backHandlerRef = useRef(null);
+  sheetRef.current = sheet;
 
   const [toast, setToast] = useState(null);
   const showToast = (message) => {
@@ -30,6 +34,13 @@ export default function App() {
     setToast({ id, message });
     setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 2200);
   };
+
+  const registerBackHandler = useCallback((handler) => {
+    backHandlerRef.current = handler;
+    return () => {
+      if (backHandlerRef.current === handler) backHandlerRef.current = null;
+    };
+  }, []);
 
   const TABS = [
     ["home", "🏠", "Home"],
@@ -43,6 +54,28 @@ export default function App() {
       setCats(await listCategories());
       setReady(true);
     })().catch((e) => setError(e.message));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let listener;
+    CapacitorApp.addListener("backButton", () => {
+      if (backHandlerRef.current) {
+        backHandlerRef.current();
+      } else if (sheetRef.current) {
+        setSheet(null);
+      } else {
+        CapacitorApp.exitApp();
+      }
+    }).then((handle) => {
+      if (active) listener = handle;
+      else handle.remove();
+    });
+
+    return () => {
+      active = false;
+      listener?.remove();
+    };
   }, []);
 
   if (!ready) return <p className="boot">{error || "Loading…"}</p>;
@@ -147,6 +180,7 @@ export default function App() {
           key={sheet.id ?? "new"}
           cats={cats}
           id={sheet.id}
+          onRegisterBackHandler={registerBackHandler}
           onClose={() =>
             setSheet(sheet.id ? { type: "receiptView", id: sheet.id } : null)
           }
