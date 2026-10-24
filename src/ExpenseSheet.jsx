@@ -5,19 +5,24 @@ import { CURRENCY } from "./config";
 import { success, warn } from "./haptics";
 
 export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
+  const initialAmount = expense
+    ? (expense.amountMinor / CURRENCY.minorPerMajor).toFixed(2)
+    : "";
+  const initialCategoryId = expense?.categoryId ?? cats[0].id;
+  const initialDate = expense?.date ?? todayLocal();
   const [f, setF] = useState(
     expense
       ? {
           description: expense.description,
-          amount: (expense.amountMinor / CURRENCY.minorPerMajor).toFixed(2),
-          categoryId: expense.categoryId,
-          date: expense.date,
+          amount: initialAmount,
+          categoryId: initialCategoryId,
+          date: initialDate,
         }
       : {
           description: "",
           amount: "",
-          categoryId: cats[0].id,
-          date: todayLocal(),
+          categoryId: initialCategoryId,
+          date: initialDate,
         },
   );
   const [error, setError] = useState("");
@@ -29,6 +34,19 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
     // play the slide-down, then tell the parent
     setClosing(true);
     setTimeout(after, 200);
+  };
+
+  const dirty = expense
+    ? f.description !== expense.description ||
+      f.amount !== initialAmount ||
+      Number(f.categoryId) !== expense.categoryId ||
+      f.date !== expense.date
+    : Boolean(f.description.trim() || f.amount.trim());
+
+  const requestClose = () => {
+    if (dirty && !window.confirm("Discard this expense? Your changes won't be saved."))
+      return;
+    dismiss(onClose);
   };
 
   async function save(e) {
@@ -79,10 +97,13 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
   return (
     <div
       className={`backdrop ${closing ? "closing" : ""}`}
-      onClick={() => dismiss(onClose)}
+      onClick={requestClose}
     >
       <form
         className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={expense ? "Edit expense" : "New expense"}
         onClick={(e) => e.stopPropagation()}
         onSubmit={save}
       >
@@ -140,7 +161,7 @@ export default function ExpenseSheet({ cats, expense, onClose, onSaved }) {
         <button
           className="btn ghost"
           type="button"
-          onClick={() => dismiss(onClose)}
+          onClick={requestClose}
         >
           Cancel
         </button>
