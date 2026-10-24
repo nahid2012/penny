@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { monthSummary, listExpenses } from "./db";
 import {
   formatAmount,
@@ -16,33 +16,48 @@ export default function Dashboard({ version, onEdit }) {
   const [month, setMonth] = useState(() => todayLocal().slice(0, 7));
   const [s, setS] = useState(null);
   const [recent, setRecent] = useState([]);
+  const [summaryError, setSummaryError] = useState("");
+  const [recentError, setRecentError] = useState("");
+  const previousMonth = useRef(month);
 
   const animatedTotal = useCountUp(s?.total ?? 0);
 
   useEffect(() => {
     let cancelled = false;
 
-    setS(null);
-    setRecent([]);
+    const monthChanged = previousMonth.current !== month;
+    previousMonth.current = month;
+    if (monthChanged) {
+      setS(null);
+      setRecent([]);
+      setSummaryError("");
+      setRecentError("");
+    }
 
     const { from, to } = monthRange(month);
 
     monthSummary(month)
       .then((summary) => {
-        if (!cancelled) setS(summary);
+        if (!cancelled) {
+          setS(summary);
+          setSummaryError("");
+        }
       })
       .catch((error) => {
         console.error("Failed to load monthly summary:", error);
-        if (!cancelled) setS(null);
+        if (!cancelled) setSummaryError("Could not load this month's summary.");
       });
 
     listExpenses({ from, to, limit: 5 })
       .then((expenses) => {
-        if (!cancelled) setRecent(expenses);
+        if (!cancelled) {
+          setRecent(expenses);
+          setRecentError("");
+        }
       })
       .catch((error) => {
         console.error("Failed to load recent expenses:", error);
-        if (!cancelled) setRecent([]);
+        if (!cancelled) setRecentError("Could not load recent expenses.");
       });
 
     return () => {
@@ -83,6 +98,12 @@ export default function Dashboard({ version, onEdit }) {
           ›
         </button>
       </div>
+
+      {summaryError && (
+        <p className="error" role="alert">
+          {summaryError}
+        </p>
+      )}
 
       {s && (
         <div key={month} className="view">
@@ -148,7 +169,7 @@ export default function Dashboard({ version, onEdit }) {
                     ))}
                   </ul>
                 ) : (
-                  <p>No recent expenses found.</p>
+                  <p>{recentError || "No recent expenses found."}</p>
                 )}
               </section>
             </>
