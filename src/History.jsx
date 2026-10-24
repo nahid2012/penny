@@ -6,6 +6,7 @@ import { ExpenseRow, Empty } from "./components";
 export default function History({ cats, version, onEdit }) {
   const [f, setF] = useState({ from: "", to: "", categoryId: "", search: "" });
   const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   useEffect(() => {
@@ -15,9 +16,17 @@ export default function History({ cats, version, onEdit }) {
       to: f.to ? addDays(f.to, 1) : undefined, // "to" is inclusive in the UI
       categoryId: f.categoryId ? Number(f.categoryId) : undefined,
       search: f.search,
-    }).then((r) => {
-      if (!cancelled) setRows(r);
-    });
+    })
+      .then((r) => {
+        if (!cancelled) {
+          setRows(r);
+          setError("");
+        }
+      })
+      .catch((e) => {
+        console.error("Failed to load history:", e);
+        if (!cancelled) setError("Could not load history.");
+      });
     return () => {
       cancelled = true;
     };
@@ -70,6 +79,12 @@ export default function History({ cats, version, onEdit }) {
           </button>
         )}
       </section>
+
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
 
       <p className="summary-line">
         <strong>{formatAmount(total)}</strong> · {rows.length} transaction
